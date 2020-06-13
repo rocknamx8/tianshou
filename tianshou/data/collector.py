@@ -9,6 +9,7 @@ from tianshou.utils import MovAvg
 from tianshou.env import BaseVectorEnv
 from tianshou.policy import BasePolicy
 from tianshou.data import Batch, ReplayBuffer, ListReplayBuffer, to_numpy
+from gym import GoalEnv
 
 
 class Collector(object):
@@ -87,6 +88,7 @@ class Collector(object):
                  = None,
                  preprocess_fn: Callable[[Any], Union[dict, Batch]] = None,
                  stat_size: Optional[int] = 100,
+                 goal_env: bool = False,
                  **kwargs) -> None:
         super().__init__()
         self.env = env
@@ -104,9 +106,13 @@ class Collector(object):
         self.process_fn = policy.process_fn
         self._multi_env = isinstance(env, BaseVectorEnv)
         self._multi_buf = False  # True if buf is a list
+        self._goal_env = False  # True if env is a GoalEnv
         # need multiple cache buffers only if storing in one buffer
         self._cached_buf = []
         if self._multi_env:
+            if goal_env:
+                self._goal_env = True
+                # self._compute_rew_func = self.env[0].compute_rewward
             self.env_num = len(env)
             if isinstance(self.buffer, list):
                 assert len(self.buffer) == self.env_num, \
@@ -118,6 +124,9 @@ class Collector(object):
                     ListReplayBuffer() for _ in range(self.env_num)]
             else:
                 raise TypeError('The buffer in data collector is invalid!')
+        else:
+            self._goal_env = True if isinstance(
+                self.env, gym.GoalEnv) else False
         self.stat_size = stat_size
         self.reset()
 
@@ -129,6 +138,10 @@ class Collector(object):
         self.state = None
         self.step_speed = MovAvg(self.stat_size)
         self.episode_speed = MovAvg(self.stat_size)
+        if self._goal_env:
+            self.success_rate = MovAvg(self.stat_size)
+        else:
+            self.success_rate = None
         self.collect_step = 0
         self.collect_episode = 0
         self.collect_time = 0
@@ -307,6 +320,11 @@ class Collector(object):
                     if self._done[i]:
                         if n_step != 0 or np.isscalar(n_episode) or \
                                 cur_episode[i] < n_episode[i]:
+                            if self._goal_env:
+                                if self._rew[i] == -1:
+                                    self.success_rate.add(0)
+                                else:
+                                    self.success_rate.add(1)
                             cur_episode[i] += 1
                             reward_sum += self.reward[i]
                             length_sum += self.length[i]
@@ -337,6 +355,11 @@ class Collector(object):
                         self._policy[0])
                 cur_step += 1
                 if self._done:
+                    if self._goal_env:
+                        if self._rew[i] == -1:
+                            self.success_rate.add(0)
+                        else:
+                            self.success_rate.add(1)
                     cur_episode += 1
                     reward_sum += self.reward[0]
                     length_sum += self.length
@@ -364,7 +387,7 @@ class Collector(object):
             n_episode = np.sum(n_episode)
         else:
             n_episode = max(cur_episode, 1)
-        return {
+        collect_result = {
             'n/ep': cur_episode,
             'n/st': cur_step,
             'v/st': self.step_speed.get(),
@@ -372,6 +395,10 @@ class Collector(object):
             'rew': reward_sum / n_episode,
             'len': length_sum / n_episode,
         }
+        if self._goal_env:
+            collect_result.update(
+                {'scr': (self.success_rate.get() / self.stat_size)})
+        return collect_result
 
     def sample(self, batch_size: int) -> Batch:
         """Sample a data batch from the internal replay buffer. It will call

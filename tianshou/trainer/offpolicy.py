@@ -128,7 +128,9 @@ def offpolicy_trainer(
             if save_fn:
                 save_fn(policy)
         if verbose:
-            print(f'Epoch #{epoch}: test_reward: {result["rew"]:.6f}, '
+            print(f'Epoch #{epoch}: test_reward: {result["rew"]:.6f}, ',
+                  f'test_success_rate:{result["scr"]:.6f}' if result.get(
+                      'scr') is not None else '',
                   f'best_reward: {best_reward:.6f} in #{best_epoch}')
         if stop_fn and stop_fn(best_reward):
             break
