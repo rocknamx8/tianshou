@@ -77,7 +77,7 @@ def onpolicy_trainer(
     test_in_train = train_collector.policy == policy
     for epoch in range(1, 1 + max_epoch):
         # train
-        policy.train()
+        policy.eval()
         if train_fn:
             train_fn(epoch)
         with tqdm.tqdm(total=step_per_epoch, desc=f'Epoch #{epoch}',
@@ -103,6 +103,7 @@ def onpolicy_trainer(
                         policy.train()
                         if train_fn:
                             train_fn(epoch)
+                policy.train()
                 losses = policy.learn(
                     train_collector.sample(0), batch_size, repeat_per_collect)
                 train_collector.reset_buffer()

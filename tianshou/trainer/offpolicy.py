@@ -72,12 +72,12 @@ def offpolicy_trainer(
     test_in_train = train_collector.policy == policy
     for epoch in range(1, 1 + max_epoch):
         # train
-        policy.train()
         if train_fn:
             train_fn(epoch)
         with tqdm.tqdm(total=step_per_epoch, desc=f'Epoch #{epoch}',
                        **tqdm_config) as t:
             while t.n < t.total:
+                policy.eval()
                 result = train_collector.collect(n_step=collect_per_step,
                                                  log_fn=log_fn)
                 data = {}
@@ -98,6 +98,7 @@ def offpolicy_trainer(
                         policy.train()
                         if train_fn:
                             train_fn(epoch)
+                policy.train()
                 for i in range(min(
                         result['n/st'] // collect_per_step, t.total - t.n)):
                     global_step += 1
