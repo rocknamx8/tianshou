@@ -321,7 +321,7 @@ class Collector(object):
                         if n_step != 0 or np.isscalar(n_episode) or \
                                 cur_episode[i] < n_episode[i]:
                             if self._goal_env:
-                                if self._rew[i] == -1:
+                                if self._info[i]["is_success"] == 0.:
                                     self.success_rate.add(0)
                                 else:
                                     self.success_rate.add(1)
@@ -356,7 +356,7 @@ class Collector(object):
                 cur_step += 1
                 if self._done:
                     if self._goal_env:
-                        if self._rew[i] == -1:
+                        if self._info[i]["is_success"] == 0.:
                             self.success_rate.add(0)
                         else:
                             self.success_rate.add(1)
