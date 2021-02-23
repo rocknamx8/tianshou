@@ -60,9 +60,12 @@ class Net(nn.Module):
             model += miniblock(
                 hidden_layer_size, hidden_layer_size, norm_layer)
 
+        self.out_layer: torch.nn.Module
         if dueling is None:
             if action_shape and not concat:
-                model += [nn.Linear(hidden_layer_size, np.prod(action_shape))]
+                out_layer = nn.Linear(hidden_layer_size, np.prod(action_shape))
+                self.out_layer = out_layer
+                model += [out_layer]
         else:  # dueling DQN
             q_layer_num, v_layer_num = dueling
             Q, V = [], []
